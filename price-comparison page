@@ -1,0 +1,104 @@
+import org.openqa.selenium.By;
+import org.openqa.selenium.JavascriptExecutor;
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebElement;
+import org.openqa.selenium.chrome.ChromeDriver;
+import org.openqa.selenium.support.ui.ExpectedConditions;
+import org.openqa.selenium.support.ui.WebDriverWait;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Test;
+
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.concurrent.TimeUnit;
+
+public class priceTest {
+    WebDriver driver;
+    String flipkartPrice = "";
+    String amazonPrice = "";
+
+    @BeforeClass
+    public void setUp() {
+    	 System.setProperty("webdriver.chrome.driver","c:\\chromedriver.exe");
+         driver = new ChromeDriver();
+         
+         driver.manage().window().maximize();
+         driver.manage().timeouts().implicitlyWait(10, TimeUnit.SECONDS);
+    }
+
+    @Test(priority = 1)
+    public void openWebsitesInDifferentTabs() {
+        // Open Flipkart in first tab
+        driver.get("https://www.flipkart.com/");
+        
+        // Open Amazon in a new tab
+        JavascriptExecutor js = (JavascriptExecutor) driver;
+        js.executeScript("window.open('https://www.amazon.in/', '_blank');");
+
+        // Switch focus to Flipkart tab
+        ArrayList<String> tabs = new ArrayList<>(driver.getWindowHandles());
+        driver.switchTo().window(tabs.get(0));
+    }
+
+    @Test(priority = 2)
+    public void fetchFlipkartPrice() {
+        // Close login popup if it appears
+        try {
+            WebElement closeBtn = driver.findElement(By.xpath("//button[contains(text(),'✕')]"));
+            closeBtn.click();
+        } catch (Exception e) {
+            System.out.println("No login popup found.");
+        }
+
+        // Search for iPhone 15 Plus (128GB)
+        WebElement searchBox = driver.findElement(By.name("q"));
+        searchBox.sendKeys("Apple iPhone 15 Plus 128GB");
+        searchBox.submit();
+
+        // Wait and extract price
+        WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(10));
+        WebElement priceElement = wait.until(ExpectedConditions.visibilityOfElementLocated(By.xpath("(//div[contains(text(),'₹')])[1]")));
+        flipkartPrice = priceElement.getText().replace("₹", "").replace(",", "").trim();
+
+        System.out.println("Flipkart Price: ₹" + flipkartPrice);
+    }
+
+    @Test(priority = 3)
+    public void fetchAmazonPrice() {
+        // Switch to Amazon tab
+        ArrayList<String> tabs = new ArrayList<>(driver.getWindowHandles());
+        driver.switchTo().window(tabs.get(1));
+
+        // Search for iPhone 15 Plus (128GB)
+        WebElement searchBox = driver.findElement(By.id("twotabsearchtextbox"));
+        searchBox.sendKeys("iPhone 15Plus 128GB");
+        searchBox.submit();
+
+        // Wait and extract price
+        WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(10));
+        WebElement priceElement = wait.until(ExpectedConditions.visibilityOfElementLocated(By.xpath("(//span[contains(@class,'a-price-whole')])[1]")));
+        amazonPrice = priceElement.getText().replace(",", "").trim();
+
+        System.out.println("Amazon Price: ₹" + amazonPrice);
+    }
+
+    @Test(priority = 4, dependsOnMethods = {"fetchFlipkartPrice", "fetchAmazonPrice"})
+    public void comparePrices() {
+        int flipkart = Integer.parseInt(flipkartPrice);
+        int amazon = Integer.parseInt(amazonPrice);
+
+        if (flipkart < amazon) {
+            System.out.println("✅ Flipkart has the better price: ₹" + flipkart);
+        } else if (amazon < flipkart) {
+            System.out.println("✅ Amazon has the better price: ₹" + amazon);
+        } else {
+            System.out.println("✅ Both websites have the same price: ₹" + flipkart);
+        }
+    }
+
+    @AfterClass
+    public void tearDown() {
+        driver.quit();
+    }
+}
